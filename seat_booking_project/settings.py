@@ -85,4 +85,10 @@ LOGIN_URL = 'accounts:login'
 LOGIN_REDIRECT_URL = 'seats:seat_list'
 LOGOUT_REDIRECT_URL = 'accounts:login'
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost',  '192.168.10.36'] 
+ALLOWED_HOSTS = [
+    '127.0.0.1',
+    'localhost',
+    '192.168.10.36',
+    'varproject.onrender.com'
+]
+ 
