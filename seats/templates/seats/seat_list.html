@@ -1,0 +1,257 @@
+{% extends 'seats/base.html' %}
+{% load static %}
+
+{% block title %}Seat Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="mb-8 text-2xl md:text-3xl font-bold text-center text-blue-400 tracking-tight">Seat Dashboard</h1>
+
+<!-- Floating Seat Status Legend -->
+<div class="fixed bottom-6 right-6 z-40 bg-gray-900 bg-opacity-95 border border-gray-700 rounded-lg shadow-lg px-5 py-3 flex items-center gap-4 text-xs md:text-sm">
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-4 rounded-full bg-green-500 border-2 border-green-400"></span>Available</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-4 rounded-full bg-orange-500 border-2 border-orange-400"></span>Pending</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-4 rounded-full bg-yellow-400 border-2 border-yellow-300"></span>Yours</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-4 rounded-full bg-red-500 border-2 border-red-400"></span>Others</span>
+</div>
+
+<!-- Info Section -->
+<div class="bg-gray-900 border border-gray-700 rounded-xl shadow-md p-6 mb-8 max-w-3xl mx-auto static-info">
+    <h3 class="text-blue-400 text-xl font-semibold mb-3">Welcome to the Library Seat Booking System!</h3>
+    <p class="text-gray-200 mb-4">Here you can view available seats across different sections of the library and reserve them for your study needs.</p>
+    <hr class="border-gray-700 my-4">
+    <h4 class="text-blue-300 font-semibold mb-2">Important Announcements:</h4>
+    <ul class="list-disc pl-5 mb-4 text-gray-300 space-y-2">
+        <li><i class="fas fa-bullhorn text-blue-400 mr-2"></i> When you book a seat, it will be in <span class="font-semibold text-orange-400">Pending Confirmation</span> status for 10 minutes. Please report to the admin desk to confirm your booking.</li>
+        <li><i class="fas fa-clock text-yellow-300 mr-2"></i> <span class="font-semibold">Library Operating Hours:</span> Monday - Friday: 9:00 AM - 9:00 PM | Saturday: 10:00 AM - 6:00 PM | Sunday: Closed</li>
+        <li><i class="fas fa-exclamation-triangle text-red-400 mr-2"></i> Silence must be maintained in all study zones.</li>
+    </ul>
+    <hr class="border-gray-700 my-4">
+    <h4 class="text-blue-300 font-semibold mb-2">Quick Instructions:</h4>
+    <ol class="list-decimal pl-5 text-gray-300 space-y-1 mb-2">
+        <li><span class="text-green-400 font-semibold">Green</span> seats are available. Click "Book" to reserve.</li>
+        <li><span class="text-orange-400 font-semibold">Orange</span> seats are pending confirmation by you. Report to admin.</li>
+        <li><span class="text-yellow-300 font-semibold">Yellow</span> seats are confirmed reserved by you.</li>
+        <li><span class="text-red-400 font-semibold">Red</span> seats are reserved by others.</li>
+        <li>Visit <span class="font-semibold">My Reservations</span> in the navigation bar to see all your active bookings.</li>
+    </ol>
+</div>
+
+<!-- Search and Filter Form -->
+<form method="GET" action="{% url 'seats:seat_dashboard' %}" class="mb-8" id="seat-filter-form">
+    <div class="flex flex-wrap gap-4 items-end justify-center">
+        <div>
+            <label for="q" class="block text-gray-300 font-semibold mb-1">Search:</label>
+            <input type="text" id="q" name="q" class="rounded bg-gray-800 border border-gray-700 text-gray-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-44" placeholder="Search by name or location" value="{{ query|default_if_none:'' }}">
+        </div>
+        <div>
+            <label for="status-filter" class="block text-gray-300 font-semibold mb-1">Status:</label>
+            <select id="status-filter" name="status" class="rounded bg-gray-800 border border-gray-700 text-gray-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-36">
+                <option value="">All</option>
+                <option value="available" {% if current_status_filter == 'available' %}selected{% endif %}>Available</option>
+                <option value="reserved" {% if current_status_filter == 'reserved' %}selected{% endif %}>Reserved</option>
+                <option value="pending_confirmation" {% if current_status_filter == 'pending_confirmation' %}selected{% endif %}>Pending Confirmation</option>
+            </select>
+        </div>
+        <div>
+            <label for="location-filter" class="block text-gray-300 font-semibold mb-1">Location:</label>
+            <select id="location-filter" name="location" class="rounded bg-gray-800 border border-gray-700 text-gray-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-40">
+                <option value="">All Locations</option>
+                {% for loc in locations %}
+                    <option value="{{ loc.name }}" {% if current_location_filter == loc.name %}selected{% endif %}>{{ loc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <!-- The button is hidden; auto-submit is handled by JS -->
+        <div>
+            <button type="submit" class="hidden">Apply Filters</button>
+        </div>
+        <div>
+            <a href="{% url 'seats:seat_dashboard' %}" class="rounded bg-gray-700 hover:bg-gray-600 text-gray-200 font-semibold px-4 py-2 transition">Reset Filters</a>
+        </div>
+    </div>
+</form>
+
+<!-- Animated Seat Grid -->
+<div class="overflow-x-auto pb-8">
+    <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3 max-w-full mx-auto">
+        {% if seats %}
+            {% for seat in seats %}
+                {% if seat.is_available %}
+                    <div class="seat-card available animate-seat-pop rounded-lg bg-gray-900 border-2 border-green-500 shadow p-2 flex flex-col items-center hover:scale-105 hover:shadow-xl transition-transform duration-200 cursor-pointer group">
+                        <div class="seat-name text-sm font-bold text-green-400 mb-1 flex items-center gap-1">
+                            <i class="fas fa-chair text-green-400"></i>{{ seat.name }}
+                        </div>
+                        <div class="seat-location text-gray-400 text-xs mb-1">{{ seat.location.name }}</div>
+                        <div class="seat-status font-bold text-green-300 text-xs mb-2">Available</div>
+                        <form action="{% url 'seats:book_seat' seat.id %}" method="post" class="w-full">
+                            {% csrf_token %}
+                            <button type="submit" class="w-full py-1 rounded bg-green-600 hover:bg-green-700 text-white font-semibold transition text-xs shadow">Book</button>
+                        </form>
+                    </div>
+                {% elif seat.is_reserved_by_current_user %}
+                    {% if seat.status == 'pending_confirmation' %}
+                        <div class="seat-card pending animate-seat-pop rounded-lg bg-gray-900 border-2 border-orange-500 shadow p-2 flex flex-col items-center hover:scale-105 hover:shadow-xl transition-transform duration-200 cursor-pointer group" data-reserved-until="{{ seat.reserved_until|date:'U' }}">
+                            <div class="seat-name text-sm font-bold text-orange-400 mb-1 flex items-center gap-1">
+                                <i class="fas fa-hourglass-half text-orange-400"></i>{{ seat.name }}
+                            </div>
+                            <div class="seat-location text-gray-400 text-xs mb-1">{{ seat.location.name }}</div>
+                            <div class="seat-status font-bold text-orange-300 text-xs mb-1">Pending (You)</div>
+                            <div class="countdown-timer text-xs text-orange-200 font-mono mb-1" id="timer-{{ seat.id }}"></div>
+                            <form action="{% url 'seats:release_seat' seat.id %}" method="post" class="w-full mt-1">
+                                {% csrf_token %}
+                                <button type="submit" class="w-full py-1 rounded bg-orange-600 hover:bg-orange-700 text-white font-semibold transition text-xs shadow">Cancel</button>
+                            </form>
+                        </div>
+                    {% else %}
+                        <div class="seat-card reserved animate-seat-pop rounded-lg bg-gray-900 border-2 border-yellow-400 shadow p-2 flex flex-col items-center hover:scale-105 hover:shadow-xl transition-transform duration-200 cursor-pointer group" data-reserved-until="{{ seat.reserved_until|date:'U' }}">
+                            <div class="seat-name text-sm font-bold text-yellow-400 mb-1 flex items-center gap-1">
+                                <i class="fas fa-user-check text-yellow-400"></i>{{ seat.name }}
+                            </div>
+                            <div class="seat-location text-gray-400 text-xs mb-1">{{ seat.location.name }}</div>
+                            <div class="seat-status font-bold text-yellow-300 text-xs mb-1">Yours</div>
+                            <div class="text-gray-400 text-xs mb-1">Until: {{ seat.reserved_until|date:"H:i" }}</div>
+                            <form action="{% url 'seats:release_seat' seat.id %}" method="post" class="w-full mt-1">
+                                {% csrf_token %}
+                                <button type="submit" class="w-full py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-white font-semibold transition text-xs shadow">Release</button>
+                            </form>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="seat-card unavailable animate-seat-pop rounded-lg bg-gray-900 border-2 border-red-500 shadow p-2 flex flex-col items-center opacity-70 group">
+                        <div class="seat-name text-sm font-bold text-red-400 mb-1 flex items-center gap-1">
+                            <i class="fas fa-user-lock text-red-400"></i>{{ seat.name }}
+                        </div>
+                        <div class="seat-location text-gray-400 text-xs mb-1">{{ seat.location.name }}</div>
+                        <div class="seat-status font-bold text-red-300 text-xs mb-1">Others</div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            <div class="col-span-full">
+                <p class="text-center text-gray-400 text-lg">No seats found matching your criteria.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Toast Notifications -->
+<div id="toast-container" class="fixed z-50 bottom-6 right-6 flex flex-col gap-4 items-end"></div>
+{% if messages %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const toastContainer = document.getElementById('toast-container');
+            {% for message in messages %}
+                // Choose color/icon based on message type
+                let color = "bg-blue-700 border-blue-400 text-blue-100";
+                let icon = "fa-info-circle";
+                {% if message.tags == "success" %}
+                    color = "bg-green-700 border-green-400 text-green-100";
+                    icon = "fa-check-circle";
+                {% elif message.tags == "error" %}
+                    color = "bg-red-700 border-red-400 text-red-100";
+                    icon = "fa-times-circle";
+                {% elif message.tags == "warning" %}
+                    color = "bg-yellow-600 border-yellow-400 text-yellow-100";
+                    icon = "fa-exclamation-triangle";
+                {% endif %}
+                // Create toast
+                const toast = document.createElement('div');
+                toast.className = `toast-message border-l-4 shadow-xl px-5 py-4 min-w-[260px] max-w-xs flex items-center gap-3 animate-toast-in ${color}`;
+                toast.innerHTML = `
+                    <i class="fas ${icon} text-xl flex-shrink-0"></i>
+                    <span class="flex-1 text-sm font-semibold">${`{{ message|escapejs }}`}</span>
+                    <button class="ml-2 text-xl opacity-60 hover:opacity-100 transition" onclick="this.parentElement.remove()" aria-label="Close">&times;</button>
+                `;
+                toastContainer.appendChild(toast);
+                // Auto-dismiss after 4s
+                setTimeout(() => {
+                    toast.classList.remove('animate-toast-in');
+                    toast.classList.add('animate-toast-out');
+                    setTimeout(() => toast.remove(), 800);
+                }, 4000);
+            {% endfor %}
+        });
+    </script>
+    <style>
+        @keyframes toast-in {
+            0% { opacity: 0; transform: translateY(40px) scale(0.95) rotate(-2deg);}
+            60% { opacity: 1; transform: translateY(-8px) scale(1.03) rotate(2deg);}
+            100% { opacity: 1; transform: translateY(0) scale(1) rotate(0);}
+        }
+        @keyframes toast-out {
+            0% { opacity: 1; transform: translateY(0) scale(1);}
+            100% { opacity: 0; transform: translateY(40px) scale(0.95);}
+        }
+        .animate-toast-in { animation: toast-in 0.7s cubic-bezier(.22,1,.36,1) both;}
+        .animate-toast-out { animation: toast-out 0.8s cubic-bezier(.22,1,.36,1) both;}
+    </style>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Seat pop-in animation (Tailwind custom animation)
+(function() {
+    const style = document.createElement('style');
+    style.innerHTML = `
+    @keyframes seat-pop {
+        0% { transform: scale(0.7); opacity: 0; }
+        80% { transform: scale(1.08); opacity: 1; }
+        100% { transform: scale(1); }
+    }
+    .animate-seat-pop { animation: seat-pop 0.6s cubic-bezier(.22,1,.36,1) both; }
+    `;
+    document.head.appendChild(style);
+})();
+
+// Timer for pending seats
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-submit for filters
+    const filterForm = document.getElementById('seat-filter-form');
+    if (filterForm) {
+        filterForm.querySelectorAll('input, select').forEach(function(el) {
+            el.addEventListener('change', function() {
+                filterForm.submit();
+            });
+        });
+        const searchInput = filterForm.querySelector('input[type="text"]');
+        if (searchInput) {
+            let timer;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(timer);
+                timer = setTimeout(() => filterForm.submit(), 500);
+            });
+        }
+    }
+
+    // Countdown for pending seats
+    const pendingSeats = document.querySelectorAll('.seat-card.pending');
+    pendingSeats.forEach(seatCard => {
+        const reservedUntilTimestamp = parseInt(seatCard.dataset.reservedUntil) * 1000;
+        const seatId = seatCard.querySelector('[id^="timer-"]').id.replace('timer-', '');
+        const timerElement = document.getElementById(`timer-${seatId}`);
+
+        function updateCountdown() {
+            const now = new Date().getTime();
+            const distance = reservedUntilTimestamp - now;
+
+            if (distance < 0) {
+                timerElement.innerHTML = "Expired!";
+                seatCard.classList.remove('pending');
+                seatCard.classList.add('unavailable');
+                clearInterval(countdownInterval);
+                return;
+            }
+
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            timerElement.innerHTML = `Time left: ${minutes}m ${seconds}s`;
+        }
+
+        const countdownInterval = setInterval(updateCountdown, 1000);
+        updateCountdown();
+    });
+});
+</script>
+{% endblock %}
